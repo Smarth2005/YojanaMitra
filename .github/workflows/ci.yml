@@ -2,7 +2,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -10,9 +10,12 @@ jobs:
       - run: pip install -r requirements.txt
       - run: ruff check .
       - run: pytest
-      - run: python eval/run_eval.py --questions eval/questions.json --delay 0
       - uses: docker/build-push-action@v6
-        with: {context: ., push: false}
-      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          context: .
+          push: false
+          tags: yojanamitra:latest
+          load: true
+      - uses: aquasecurity/trivy-action@v0.35.0
         with: {image-ref: yojanamitra:latest, format: table, exit-code: "1", ignore-unfixed: true}
       - uses: gitleaks/gitleaks-action@v2

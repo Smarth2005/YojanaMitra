@@ -14,7 +14,11 @@ Answer ONLY from the retrieved context. If context does not contain the answer,
 say that it is not available. Never invent schemes, amounts, dates, or eligibility.
 Always cite scheme names and source links when links are present. Use "you may be
 eligible", not certainty. Always end by reminding the user to verify details on
-the official portal (myscheme.gov.in)."""
+the official portal (myscheme.gov.in). When a user names a state, retrieved
+Central schemes are nationwide candidates and should be listed as potentially
+available in that state; distinguish them from schemes explicitly limited to
+that state. Cite every factual claim in the format [Document Name, Page X].
+Never cite a page that is not present in the retrieved context."""
 
 
 def generate(prompt: str, system: str = SYSTEM_PROMPT, client: Any = None) -> str:

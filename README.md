@@ -7,10 +7,27 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-5%20passing-2ea44f" alt="5 tests passing" />
+  <img src="https://img.shields.io/badge/tests-7%20passing-2ea44f" alt="7 tests passing" />
 </p>
 
 YojanaMitra is a retrieval-augmented government-scheme finder for Indian citizens. It retrieves text from scheme PDFs and answers with citations rather than relying on unsupported model memory.
+
+## 💼 Resume-ready summary
+
+**YojanaMitra — Evidence-Grounded Government Scheme Assistant**
+
+> Built an evidence-grounded RAG application that retrieves Indian government scheme information from PDFs and generates page-cited answers for discovery, eligibility, benefits, documents, application processes, and comparison. Implemented section-aware pypdf ingestion, local sentence-transformer embeddings, ChromaDB search, FastAPI APIs, and a Streamlit interface. Added configurable similarity-threshold refusal, Docker Compose deployment, CI tests, Prometheus/Grafana metrics, rate limiting, and security scanning.
+
+### Interview explanation
+
+1. **Ingest:** extract real scheme PDFs and split them by meaningful sections.
+2. **Embed:** convert each section into a vector using `all-MiniLM-L6-v2`.
+3. **Retrieve:** search ChromaDB with semantic similarity and state/Central filters.
+4. **Generate:** send only the top retrieved passages to an OpenAI-compatible LLM.
+5. **Ground:** require the model to answer only from context with `[Document Name, Page X]` citations.
+6. **Refuse:** return `Insufficient official policy evidence` when retrieved evidence is below the configured similarity threshold.
+
+The project is intentionally focused: the LLM does not act as a general chatbot, and it does not invent eligibility rules or scheme details.
 
 ## 🏗️ Architecture
 
@@ -40,7 +57,7 @@ uvicorn src.api:app --reload
 streamlit run ui.py
 ```
 
-The current sample inspection observed `Details`, `Benefits`, `Eligibility`, `Exclusions`, `Application Process`, `Documents Required`, `Frequently Asked Questions`, and `Sources And References` headings. The parser chunks each section at approximately 800 characters with overlap.
+The current sample inspection observed `Details`, `Benefits`, `Eligibility`, `Exclusions`, `Application Process`, `Documents Required`, `Frequently Asked Questions`, and `Sources And References` headings. The parser chunks each section at approximately 800 characters with overlap and preserves source document/page metadata.
 
 ## 💬 Ask a question
 
@@ -61,7 +78,7 @@ Set only environment variables in `.env`: `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_M
 
 ## 🔌 API
 
-`POST /api/ask` accepts `{"question":"...", "profile":{"age":21,"state":"Punjab"}}`. It returns an answer, retrieved sources, query type, and latency. `GET /health` and `GET /metrics` are also available.
+`POST /api/ask` accepts `{"question":"...", "profile":{"age":21,"state":"Punjab"}}`. It returns an answer, page-level source citations, retrieved sources, query type, and latency. `GET /health` and `GET /metrics` are also available.
 
 ## 📊 Evaluation
 
@@ -69,7 +86,7 @@ Run `python eval/run_eval.py`. It prints and saves the measured hit rate in `eva
 
 ## 🧭 Design decisions and limitations
 
-Section-based chunks preserve the meaning of eligibility and benefits. State filtering includes the requested state **or Central** because national schemes apply across states. The provider-agnostic client avoids coupling retrieval to one vendor. Known failure cases include OCR-poor PDFs, ambiguous scheme names, stale source data, and rate-limited free LLM endpoints. The assistant asks for a profile before comparison qualification and always advises official verification.
+Section-based chunks preserve the meaning of eligibility and benefits. State filtering includes the requested state **or Central** because national schemes apply across states. A configurable Chroma distance threshold prevents weak matches from reaching the LLM; the default is `RETRIEVAL_DISTANCE_THRESHOLD=1.10`. The provider-agnostic client avoids coupling retrieval to one vendor. Known failure cases include OCR-poor PDFs, ambiguous scheme names, stale source data, and rate-limited free LLM endpoints. The assistant asks for a profile before comparison qualification and always advises official verification.
 
 Data source: myscheme.gov.in via the shrijayan/gov_myscheme dataset.
 

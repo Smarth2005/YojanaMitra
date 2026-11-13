@@ -38,6 +38,8 @@ class Source(BaseModel):
     section: str
     text: str
     source_url: str = ""
+    source_document: str = ""
+    page_number: int = 1
 
 
 class AskResponse(BaseModel):
@@ -105,6 +107,8 @@ def create_app(pipeline: RAGPipeline | None = None) -> FastAPI:
                 section=chunk.metadata.get("section", ""),
                 text=chunk.text,
                 source_url=chunk.metadata.get("source_url", ""),
+                source_document=chunk.metadata.get("source_document", ""),
+                page_number=int(chunk.metadata.get("page_number", 1)),
             )
             for chunk in result.sources
         ]

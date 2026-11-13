@@ -17,4 +17,7 @@ LLM_MODEL = os.getenv("LLM_MODEL", "")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_RATE_DELAY = float(os.getenv("LLM_RATE_DELAY", "1.0"))
 API_RATE_LIMIT = int(os.getenv("API_RATE_LIMIT", "20"))
+RETRIEVAL_DISTANCE_THRESHOLD = float(
+    os.getenv("RETRIEVAL_DISTANCE_THRESHOLD", "1.10")
+)
 

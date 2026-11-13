@@ -3,7 +3,7 @@ from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
 from src.api import create_app
-from src.ingest import chunk_text, parse_sections
+from src.ingest import SchemeRecord, chunk_text, parse_sections, record_chunks
 from src.rag import RAGPipeline, classify_query
 from src.retriever import RetrievedChunk
 
@@ -38,8 +38,42 @@ def test_metadata_filter_and_state_central() -> None:
     assert where == {"$or": [{"state_or_level": "Punjab"}, {"state_or_level": "Central"}]}
 
 
+def test_record_chunks_include_document_page_metadata() -> None:
+    record = SchemeRecord(
+        "Scheme A",
+        "Central",
+        "General",
+        {"Benefits": "Support is available."},
+        {"Benefits": [2, 3]},
+        source_file="data/raw/scheme-a.pdf",
+    )
+    _, item = next(record_chunks(record))
+    assert item["metadata"]["source_document"] == "scheme-a.pdf"
+    assert item["metadata"]["page_number"] == 2
+    assert item["metadata"]["page_numbers"] == "2, 3"
+
+
+def test_rag_refuses_weak_retrieval() -> None:
+    chunk = RetrievedChunk("unrelated", {"scheme_name": "A"}, 1.5)
+    retriever = Mock()
+    retriever.search.return_value = [chunk]
+    result = RAGPipeline(retriever, generator=Mock()).answer("What is the weather?")
+    assert result.answer == "Insufficient official policy evidence"
+    assert result.sources == []
+
+
 def test_api_schema_and_health() -> None:
-    chunk = RetrievedChunk("context", {"scheme_name": "A", "section": "Benefits", "source_url": ""}, 0.1)
+    chunk = RetrievedChunk(
+        "context",
+        {
+            "scheme_name": "A",
+            "section": "Benefits",
+            "source_url": "",
+            "source_document": "a.pdf",
+            "page_number": 2,
+        },
+        0.1,
+    )
     retriever = Mock()
     retriever.search.return_value = [chunk]
     client = TestClient(create_app(RAGPipeline(retriever, generator=Mock(return_value="answer"))))
@@ -47,3 +81,4 @@ def test_api_schema_and_health() -> None:
     response = client.post("/api/ask", json={"question": "Tell me about a scheme"})
     assert response.status_code == 200
     assert response.json()["query_type"] == "discovery"
+    assert response.json()["sources"][0]["page_number"] == 2

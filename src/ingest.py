@@ -34,6 +34,7 @@ class SchemeRecord:
     state_or_level: str
     category: str
     sections: dict[str, str]
+    section_pages: dict[str, list[int]]
     source_url: str = ""
     source_file: str = ""
 
@@ -75,10 +76,41 @@ def parse_sections(text: str) -> dict[str, str]:
     return sections
 
 
+def _section_pages(page_texts: list[str]) -> dict[str, list[int]]:
+    normalized_pages = [clean_text(page) for page in page_texts]
+    full_text = " ".join(normalized_pages)
+    page_ranges: list[tuple[int, int, int]] = []
+    cursor = 0
+    for page_number, page in enumerate(normalized_pages, start=1):
+        page_ranges.append((cursor, cursor + len(page), page_number))
+        cursor += len(page) + 1
+
+    matches = list(_SECTION_PATTERN.finditer(full_text))
+    result: dict[str, list[int]] = {}
+    for index, match in enumerate(matches):
+        label = next(
+            candidate for candidate in SECTION_LABELS
+            if candidate.lower() == match.group("label").lower()
+        )
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(full_text)
+        pages = [
+            page_number
+            for start, finish, page_number in page_ranges
+            if match.start() < finish and end > start
+        ]
+        if pages:
+            result[label] = pages
+    return result
+
+
 def parse_pdf(path: Path) -> SchemeRecord:
-    text = "\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+    page_texts = [page.extract_text() or "" for page in PdfReader(str(path)).pages]
+    text = "\n".join(page_texts)
     cleaned = clean_text(text)
     sections = parse_sections(cleaned)
+    section_pages = _section_pages(page_texts)
+    if "Details" not in section_pages:
+        section_pages["Details"] = [1]
     title_match = re.search(r"^(.{1,180}?\bScheme)\b", cleaned, re.IGNORECASE)
     title = clean_text(title_match.group(1)) if title_match else path.stem.replace("_", " ").title()
     title = re.sub(r"^(?:Back|Details|Benefits|Eligibility|Scheme)\s*", "", title).strip()
@@ -92,7 +124,9 @@ def parse_pdf(path: Path) -> SchemeRecord:
     )
     category = _label_value(cleaned, "Category", "General")
     source_url = _label_value(cleaned, "Source URL", "")
-    return SchemeRecord(title, state, category, sections, source_url, str(path))
+    return SchemeRecord(
+        title, state, category, sections, section_pages, source_url, str(path)
+    )
 
 
 def chunk_text(text: str, size: int = 800, overlap: int = 80) -> list[str]:
@@ -111,6 +145,7 @@ def chunk_text(text: str, size: int = 800, overlap: int = 80) -> list[str]:
 
 def record_chunks(record: SchemeRecord) -> Iterable[tuple[str, dict[str, str]]]:
     for section, text in record.sections.items():
+        pages = record.section_pages.get(section, [1])
         for index, chunk in enumerate(chunk_text(text)):
             document = f"Scheme: {record.scheme_name} | Section: {section}\n{chunk}"
             chunk_id = hashlib.sha1(
@@ -125,6 +160,9 @@ def record_chunks(record: SchemeRecord) -> Iterable[tuple[str, dict[str, str]]]:
                     "category": record.category,
                     "source_url": record.source_url,
                     "source_file": record.source_file,
+                    "source_document": Path(record.source_file).name,
+                    "page_number": pages[0],
+                    "page_numbers": ", ".join(str(page) for page in pages),
                 },
             }
 
@@ -139,9 +177,15 @@ def _selected_files(raw_dir: Path, subset_size: int) -> list[Path]:
             continue
         seen.add(stem.lower())
         unique.append(path)
-        if subset_size and len(unique) >= subset_size:
-            break
-    return unique
+    if not subset_size:
+        return unique
+    priority_terms = ("farmer", "kisan", "student", "scholar", "punjab", "agri")
+    priority = [
+        path for path in unique
+        if any(term in path.stem.lower() for term in priority_terms)
+    ]
+    remainder = [path for path in unique if path not in priority]
+    return (priority + remainder)[:subset_size]
 
 
 def ingest(raw_dir: Path = RAW_DATA_DIR, subset_size: int = SUBSET_SIZE) -> int:
