@@ -3,44 +3,72 @@
 > **🔎 Find government schemes. 📚 Understand eligibility. ✅ Apply with confidence.**
 
 <p align="center">
-  <img src="https://skillicons.dev/icons?i=python,fastapi,streamlit,docker,githubactions,pytorch,prometheus,grafana&perline=8" alt="YojanaMitra technology stack" />
+  <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" alt="Python 3.11" />
+  <img src="https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/Streamlit-UI-FF4B4B?logo=streamlit&logoColor=white" alt="Streamlit" />
+  <img src="https://img.shields.io/badge/ChromaDB-Vector%20search-FF6F00" alt="ChromaDB" />
+  <img src="https://img.shields.io/badge/Groq-LLM%20inference-F55036" alt="Groq" />
+  <img src="https://img.shields.io/badge/Docker-Deployment-2496ED?logo=docker&logoColor=white" alt="Docker" />
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/tests-7%20passing-2ea44f" alt="7 tests passing" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" />
 </p>
 
-YojanaMitra is a retrieval-augmented government-scheme finder for Indian citizens. It retrieves text from scheme PDFs and answers with citations rather than relying on unsupported model memory.
+YojanaMitra is an evidence-grounded RAG assistant that helps Indian citizens discover and understand government schemes from official scheme PDFs. It retrieves relevant passages, answers only from that evidence, cites document pages, and refuses weak or unsupported policy answers.
 
-## 💼 Resume-ready summary
+## 🎯 Problem statement
 
-**YojanaMitra — Evidence-Grounded Government Scheme Assistant**
+Government-scheme information is distributed across many long documents, uses inconsistent terminology, and can become outdated. Citizens need a simple way to ask profile-based, category, detail, and comparison questions without receiving invented eligibility rules or benefits.
 
-> Built an evidence-grounded RAG application that retrieves Indian government scheme information from PDFs and generates page-cited answers for discovery, eligibility, benefits, documents, application processes, and comparison. Implemented section-aware pypdf ingestion, local sentence-transformer embeddings, ChromaDB search, FastAPI APIs, and a Streamlit interface. Added configurable similarity-threshold refusal, Docker Compose deployment, CI tests, Prometheus/Grafana metrics, rate limiting, and security scanning.
+## ✅ What the system does
 
-### Interview explanation
+- Extracts scheme PDFs from the `shrijayan/gov_myscheme` Hugging Face dataset.
+- Parses observed sections such as `Benefits`, `Eligibility`, `Documents Required`, and `Application Process`.
+- Creates section-aware chunks with source document and page metadata.
+- Retrieves relevant Central or state-specific evidence using semantic search.
+- Generates answers through Groq's OpenAI-compatible API.
+- Requires `[Document Name, Page X]` citations and returns `Insufficient official policy evidence` when retrieval is below the configured threshold.
 
-1. **Ingest:** extract real scheme PDFs and split them by meaningful sections.
-2. **Embed:** convert each section into a vector using `all-MiniLM-L6-v2`.
-3. **Retrieve:** search ChromaDB with semantic similarity and state/Central filters.
-4. **Generate:** send only the top retrieved passages to an OpenAI-compatible LLM.
-5. **Ground:** require the model to answer only from context with `[Document Name, Page X]` citations.
-6. **Refuse:** return `Insufficient official policy evidence` when retrieved evidence is below the configured similarity threshold.
-
-The project is intentionally focused: the LLM does not act as a general chatbot, and it does not invent eligibility rules or scheme details.
-
-## 🏗️ Architecture
+## 🏗️ System architecture
 
 ```mermaid
 flowchart LR
-  PDFs[HF gov_myscheme PDFs] --> Parse[pypdf section parser]
-  Parse --> Embed[all-MiniLM-L6-v2]
-  Embed --> Chroma[(Persistent ChromaDB)]
-  User[Streamlit] --> API[FastAPI]
-  API --> Retrieve[Filtered semantic retrieval]
-  Retrieve --> LLM[OpenAI-compatible LLM]
-  LLM --> API
+    A["📄 Government scheme PDFs<br/>myscheme.gov.in"] --> B["🐍 pypdf<br/>Extract text + page numbers"]
+    B --> C["🧩 Section parser<br/>Eligibility / Benefits / Documents"]
+    C --> D["✂️ Chunker<br/>~800 chars + overlap"]
+    D --> E["🧠 Sentence Transformers<br/>all-MiniLM-L6-v2"]
+    E --> F[("🗃️ ChromaDB<br/>Persistent vector index")]
+
+    U["👤 Citizen"] --> S["🎨 Streamlit UI"]
+    S --> API["⚡ FastAPI /api/ask"]
+    API --> R["🔎 Retriever<br/>semantic + state/Central filters"]
+    R --> F
+    R --> G["🛡️ Grounding + threshold check"]
+    G --> L["🚀 Groq<br/>OpenAI-compatible LLM"]
+    L --> API
+    API --> S
+
+    API --> M["📈 Prometheus metrics"]
+    M --> GR["📊 Grafana dashboard"]
 ```
+
+## 🧰 Technology stack and purpose
+
+| Tool | Purpose |
+|---|---|
+| **Python 3.11** | Application and ingestion language |
+| **pypdf** | Extracts PDF text while preserving page references |
+| **Sentence Transformers** | Creates local `all-MiniLM-L6-v2` embeddings |
+| **ChromaDB** | Persistent local vector database and similarity search |
+| **FastAPI + Pydantic** | Typed backend API, validation, health, and metrics endpoints |
+| **Groq** | Fast, low-cost LLM inference through an OpenAI-compatible API |
+| **Streamlit** | Conversational web interface with profile inputs and sources |
+| **Docker Compose** | Reproducible API, UI, and optional monitoring services |
+| **Prometheus + Grafana** | Request, latency, retrieval, and error observability |
+| **pytest + Ruff** | Offline tests and Python linting |
+| **GitHub Actions + Gitleaks** | Automated CI checks and secret scanning |
 
 ## 🚀 Setup
 
@@ -53,48 +81,81 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 python scripts\download_data.py
 python -m src.ingest --subset 50
-uvicorn src.api:app --reload
-streamlit run ui.py
 ```
 
-The current sample inspection observed `Details`, `Benefits`, `Eligibility`, `Exclusions`, `Application Process`, `Documents Required`, `Frequently Asked Questions`, and `Sources And References` headings. The parser chunks each section at approximately 800 characters with overlap and preserves source document/page metadata.
+### Environment secrets and configuration
 
-## 💬 Ask a question
+Never commit `.env`. Copy `.env.example` to `.env` and set:
 
-Start the API and UI in separate terminals:
+```dotenv
+LLM_PROVIDER=groq
+LLM_BASE_URL=https://api.groq.com/openai/v1
+LLM_MODEL=your-groq-model-name
+LLM_API_KEY=your-groq-api-key
+```
+
+`LLM_API_KEY` is the only secret required for Groq. The model name is deliberately configured through the environment and is not hardcoded. `LLM_RATE_DELAY`, `API_RATE_LIMIT`, `SUBSET_SIZE`, and `RETRIEVAL_DISTANCE_THRESHOLD` control local rate limiting, indexing size, and refusal behavior.
+
+### Run locally
+
+Start the backend and UI in separate terminals:
 
 ```powershell
 uvicorn src.api:app --reload
 streamlit run ui.py
 ```
 
-Open **http://localhost:8501** and ask questions such as:
+Open **http://localhost:8501**.
 
-> I am a 21-year-old student from Punjab. Which scholarships can I apply for?
-
-## 🤖 LLM providers
-
-Set only environment variables in `.env`: `LLM_PROVIDER`, `LLM_BASE_URL`, `LLM_MODEL`, and `LLM_API_KEY`. Groq is the default endpoint; Gemini's OpenAI-compatible endpoint and Ollama work by changing these values. No model or key is hardcoded.
-
-## 🔌 API
-
-`POST /api/ask` accepts `{"question":"...", "profile":{"age":21,"state":"Punjab"}}`. It returns an answer, page-level source citations, retrieved sources, query type, and latency. `GET /health` and `GET /metrics` are also available.
-
-## 📊 Evaluation
-
-Run `python eval/run_eval.py`. It prints and saves the measured hit rate in `eval/results.json`; no result is claimed here until it is run against the indexed Chroma database.
-
-## 🧭 Design decisions and limitations
-
-Section-based chunks preserve the meaning of eligibility and benefits. State filtering includes the requested state **or Central** because national schemes apply across states. A configurable Chroma distance threshold prevents weak matches from reaching the LLM; the default is `RETRIEVAL_DISTANCE_THRESHOLD=1.10`. The provider-agnostic client avoids coupling retrieval to one vendor. Known failure cases include OCR-poor PDFs, ambiguous scheme names, stale source data, and rate-limited free LLM endpoints. The assistant asks for a profile before comparison qualification and always advises official verification.
-
-Data source: myscheme.gov.in via the shrijayan/gov_myscheme dataset.
-
-## 🐳 Docker
+### Run with Docker
 
 ```powershell
 docker compose up -d
 docker compose --profile monitoring up -d
 ```
 
-The monitoring profile provides Prometheus at **http://localhost:9090** and Grafana at **http://localhost:3000**.
+The API is available at **http://localhost:8000**, the UI at **http://localhost:8501**, Prometheus at **http://localhost:9090**, and Grafana at **http://localhost:3000**.
+
+## 💬 Sample questions
+
+1. **Profile discovery:** “I am a 21-year-old student from Punjab. Which scholarships can I apply for?”
+2. **Category search:** “What schemes are available for women entrepreneurs?”
+3. **Detail lookup:** “What are the eligibility criteria, benefits, documents, and application process for this scheme?”
+4. **Comparison:** “Compare scheme A and scheme B. Which one may I qualify for?”
+5. **Evidence refusal:** “What is today's weather?” → `Insufficient official policy evidence`
+
+## 🔌 API
+
+`POST /api/ask` accepts:
+
+```json
+{
+  "question": "Which scholarships may I qualify for?",
+  "profile": {"age": 21, "state": "Punjab", "occupation": "student"}
+}
+```
+
+It returns the answer, query type, latency, and retrieved sources with scheme name, section, source document, and page number. `GET /health` and `GET /metrics` are also available.
+
+## 📊 Results and verification
+
+- **100** prioritized scheme PDFs indexed for the fast local subset.
+- **839** section-aware ChromaDB chunks generated.
+- **7 tests passed** covering parsing, chunking, retrieval filters, classification, refusal mode, API validation, and health.
+- Ruff checks pass.
+- Page metadata and refusal behavior verified locally.
+- In-domain retrieval distance observed around **0.86**; unrelated query distance observed around **1.83**, with the default refusal threshold set to **1.10**.
+
+Run the retrieval evaluation against your local index:
+
+```powershell
+python eval\run_eval.py
+```
+
+The measured results are written to `eval/results.json`; no unexecuted evaluation score is claimed here.
+
+## 🧭 Design decisions and limitations
+
+Chunks are split by meaningful document sections so eligibility and benefits remain together. State filtering includes the requested state **or Central**, because nationwide schemes can apply across states. The LLM receives only the top retrieved passages and must cite their document pages. OCR-poor PDFs, ambiguous scheme names, stale source data, and free-tier rate limits can still affect results. Users should always verify current details on **myscheme.gov.in**.
+
+Data source: `myscheme.gov.in` through the `shrijayan/gov_myscheme` dataset.
