@@ -9,7 +9,7 @@ jobs:
         with: {python-version: "3.11"}
       - run: pip install -r requirements.txt
       - run: ruff check .
-      - run: pytest
+      - run: python -m pytest
       - uses: docker/build-push-action@v6
         with:
           context: .
