@@ -1,0 +1,7 @@
+[
+  {"question": "What are the benefits and eligibility of 25% Capital Investment Subsidy Scheme?", "expected_schemes": ["25% Capital Investment Subsidy Scheme"]},
+  {"question": "What documents are required for 25% Capital Investment Subsidy Scheme?", "expected_schemes": ["25% Capital Investment Subsidy Scheme"]},
+  {"question": "How do I apply for a student scholarship scheme?", "expected_schemes": ["Post Matric Scholarship"]},
+  {"question": "What schemes are available for women entrepreneurs?", "expected_schemes": ["Women Entrepreneur"]},
+  {"question": "I am a 21-year-old student from Punjab. Which scholarships can I apply for?", "expected_schemes": ["Post Matric Scholarship"]}
+]

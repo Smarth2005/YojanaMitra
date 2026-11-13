@@ -1,0 +1,1 @@
+{"title":"YojanaMitra","panels":[{"type":"timeseries","title":"Requests","targets":[{"expr":"yojanamitra_requests_total"}]},{"type":"timeseries","title":"Latency","targets":[{"expr":"yojanamitra_request_latency_seconds"}]}],"schemaVersion":39}
